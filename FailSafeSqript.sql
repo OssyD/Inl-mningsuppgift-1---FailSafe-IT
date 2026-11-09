@@ -81,6 +81,80 @@ VALUES
     (3, 1, 'Felsökning och optimering av internt C#-system','2026-10-05', '2026-11-27');
 GO
 
+INSERT INTO CustomerCompany (CompanyName, OrgNr, Email, Phone)
+VALUES ('Tom Kund AB', '556999-0000', 'info@tomkund.example.se', '08-000 00 00');
+
+--Fråga A: Lista namn och timpris på alla konsulter som har ett timpris högre än 1200 kr, sorterat efter pris (högst först).
+Select [Name], HourlyRate FROM Consultant Where HourlyRate > 1200 ORDER BY HourlyRate DESC;
+
+--Fråga B: Visa en sammanställning över alla uppdrag.
+--Listan måste innehålla kundens företagsnamn, konsultens namn, samt start- och slutdatum för uppdraget.
+Select c.CompanyName, cs.[Name], a.StartDate, a.EndDate
+From Assignment a
+Join CustomerCompany c on a.CustomerCompanyId = c.Id
+Join Consultant cs on a.ConsultantId = cs.Id
+
+--Fråga C: Visa en lista på alla kunder och hur många uppdrag respektive kund har aktiva i systemet totalt (Tips: Använd COUNT och GROUP BY).
+SELECT c.CompanyName, c.OrgNr,Count(a.Id) as Antal
+FROM CustomerCompany c
+LEFT Join Assignment a on a.CustomerCompanyId = c.Id
+Group By c.OrgNr, c.CompanyName
+ORDER BY Antal DESC;
 
 
+--AKTIVA
+SELECT c.CompanyName, c.OrgNr, COUNT(a.Id) AS Antal
+FROM CustomerCompany c
+LEFT JOIN Assignment a
+    ON a.CustomerCompanyId = c.Id
+   AND a.StartDate <= CAST(GETDATE() AS DATE)
+   AND a.EndDate   >= CAST(GETDATE() AS DATE)
+GROUP BY c.OrgNr, c.CompanyName
+ORDER BY Antal DESC;
 
+--Fråga D: Uppdatera timpriset för en specifik konsult genom en UPDATE-fråga.
+SELECT [Name], HourlyRate FROM Consultant WHERE Id = 1;   -- Före: 1250.00
+
+UPDATE Consultant SET HourlyRate = 1000
+WHERE Id = 1;
+
+SELECT [Name], HourlyRate FROM Consultant WHERE Id = 1;   -- Efter: 1000.00
+
+--Fråga E: Skriv en DELETE-fråga som tar bort en kund (förutsatt att kunden inte har några aktiva uppdrag kopplade till sig). 
+-- Den främmande nyckeln FK_Assignment_CustomerCompany har ingen ON DELETE-regel, alltså NO ACTION.
+-- SQL Server stoppar därför borttagning av en kund som har uppdrag, även avslutade.
+-- NOT EXISTS gör att frågan inte gör något i stället för att ge ett fel.
+SELECT * FROM CustomerCompany WHERE OrgNr = '556999-0000';   -- Före: 1 rad
+
+DELETE FROM CustomerCompany
+WHERE OrgNr = '556999-0000'
+  AND NOT EXISTS (SELECT 1 FROM Assignment a WHERE a.CustomerCompanyId = CustomerCompany.Id);
+
+SELECT * FROM CustomerCompany WHERE OrgNr = '556999-0000';   -- Efter: 0 rader
+
+  -- Variant 2: tar bort kunden om den inte har pågående eller kommande uppdrag.
+-- Avslutade uppdrag måste tas bort först, eftersom den främmande nyckeln annars stoppar borttagningen.
+
+DECLARE @CustomerId INT = (SELECT Id FROM CustomerCompany WHERE OrgNr = '556234-5678');
+
+SELECT * FROM CustomerCompany WHERE OrgNr = '556234-5678';
+SELECT * FROM Assignment WHERE CustomerCompanyId = @CustomerId;
+
+IF NOT EXISTS (SELECT 1 FROM Assignment
+               WHERE CustomerCompanyId = @CustomerId
+                 AND EndDate >= CAST(GETDATE() AS DATE))
+BEGIN
+    BEGIN TRANSACTION;
+        DELETE FROM Assignment      WHERE CustomerCompanyId = @CustomerId;
+        DELETE FROM CustomerCompany WHERE Id = @CustomerId;
+    COMMIT;
+END
+ELSE
+    PRINT 'Kunden har aktiva eller kommande uppdrag och kan inte tas bort.';
+SELECT * FROM CustomerCompany WHERE OrgNr = '556234-5678';
+SELECT * FROM Assignment WHERE CustomerCompanyId = @CustomerId;
+
+
+SELECT * FROM CustomerCompany;
+SELECT * FROM Assignment;
+SELECT * FROM Consultant
