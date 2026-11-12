@@ -4,7 +4,7 @@ Relationsdatabas för konsultbolaget FailSafe IT som hanterar kunder, konsulter 
 Byggd för Microsoft SQL Server.
 
 ## Innehåll
-- `FailSafeDB.sql` - skapar databasen, tabellerna, testdata och frågorna A-E
+- `FailSafe.sql` - skapar databasen, tabellerna, testdata och frågorna A-E
 - `ER DIAGRAM.png` - ER-diagram skapat i Lucidchart
 
 ## ER-diagram
